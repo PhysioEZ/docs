@@ -1,0 +1,172 @@
+<div class="breadcrumbs">
+    <a href="pages/introduction.html" class="nav-link">Docs</a>
+    <span>/</span>
+    <a href="pages/database/01-overview-and-er-diagram.html" class="nav-link">Database Schema</a>
+    <span>/</span>
+    <span>System & Audit Tables</span>
+</div>
+
+<section id="system-tables-intro">
+    <h1>System, Audit & Support Tables</h1>
+    <p>
+        This group of tables supports the application's internal operations. They are not directly involved in
+        patient care but are critical for **security, accountability, and user support**.
+    </p>
+    <p>
+        These tables track user actions (<code>audit_log</code>), secure the login process
+        (<code>login_attempts</code>), manage internal alerts (<code>notifications</code>), and power the
+        help-desk features (<code>support_queries</code>, <code>help_articles</code>).
+    </p>
+</section>
+
+<hr class="section-divider">
+
+<section id="diagram-system">
+    <h2 id="diagram-system-heading">Use Case: System Administration & Audit</h2>
+    <p>
+        This diagram shows how employees (via their <code>user_id</code>) interact with the core system services.
+        Every significant action is logged, every login attempt is monitored, and all support and communication
+        are tracked.
+    </p>
+
+    <div class="image-placeholder">
+        <img src="pages/05-database-schema/assets/system-tables.png" alt="System and Audit Tables ER Diagram">
+        <p class="caption-text">Internal tables for logging, security, and support.</p>
+    </div>
+
+    <h3 id="data-flow-heading">Data Flow Explained</h3>
+    <ol>
+        <li>
+            Every login attempt by an <code>employees</code> member is tracked in <code>login_attempts</code>.
+        </li>
+        <li>
+            Once logged in, almost every action (create, update, delete) the employee performs is recorded in
+            the <strong><code>audit_log</code></strong>, linking the <code>employee_id</code>, <code>branch_id</code>,
+            and the specific database record that was changed.
+        </li>
+        <li>
+            The system can send <strong><code>notifications</code></strong> to an employee, or employees can send
+            them to each other.
+        </li>
+        <li>
+            If an employee has an issue, they can file a <strong><code>support_queries</code></strong> ticket, which
+            is managed by the admin team.
+        </li>
+        <li>
+            The admin team can publish <strong><code>help_articles</code></strong> to create a self-service
+            knowledge base for common issues.
+        </li>
+    </ol>
+
+    <h3 id="dbml-heading">DBML Code</h3>
+    <p>
+        This DBML code generates the diagram above.
+    </p>
+    <pre><code class="language-dbml">
+// --- USE CASE 4: SYSTEM, AUDIT & SUPPORT ---
+
+Table employees {
+  employee_id int [PK]
+  user_id int [ref: > users.id]
+  branch_id int [ref: > branches.branch_id]
+  first_name varchar
+  last_name varchar
+}
+
+Table users {
+  id int [PK]
+}
+
+Table branches {
+  branch_id int [PK]
+  branch_name varchar
+}
+
+Table audit_log {
+  log_id bigint [PK]
+  log_timestamp timestamp
+  user_id int [ref: > users.id]
+  employee_id int [ref: > employees.employee_id]
+  username varchar
+  branch_id int [ref: > branches.branch_id]
+  action_type enum
+  target_table varchar
+  target_id int
+  ip_address varchar
+}
+
+Table login_attempts {
+  id int [PK]
+  username varchar
+  ip varbinary
+  attempt_count int
+  last_attempt timestamp
+}
+
+Table notifications {
+  notification_id int [PK]
+  employee_id int [ref: > employees.employee_id] // The recipient
+  created_by_employee_id int [ref: > employees.employee_id] // The sender
+  branch_id int [ref: > branches.branch_id]
+  message varchar
+  is_read tinyint
+  created_at timestamp
+}
+
+Table support_queries {
+  query_id int [PK]
+  query_token varchar
+  employee_id int [ref: > employees.employee_id]
+  branch_id int [ref: > branches.branch_id]
+  subject varchar
+  status enum
+  created_at timestamp
+}
+
+Table help_articles {
+  article_id int [PK]
+  title varchar
+  category varchar
+  keywords text
+}
+</code></pre>
+</section>
+
+<hr class="section-divider">
+
+<section id="table-definitions-system">
+    <h2 id="table-definitions-system-heading">Key Table Definitions</h2>
+
+    <h3 id="audit-log-table">audit_log</h3>
+    <p>
+        This is one of the most critical tables for accountability. It records "who, what, and when" for nearly
+        every action in the application. It stores the <code>employee_id</code>, the <code>action_type</code> (e.g.,
+        'CREATE', 'UPDATE', 'DELETE'), and a snapshot of the data before and after the change (in
+        <code>details_before</code> and <code>details_after</code>).
+    </p>
+
+    <h3 id="login-attempts-table">login_attempts</h3>
+    <p>
+        A security table used for tracking login successes and failures. This is essential for implementing
+        rate-limiting and brute-force protection to lock accounts after too many failed attempts.
+    </p>
+
+    <h3 id="notifications-table">notifications</h3>
+    <p>
+        Powers the "bell icon" or real-time notification system. It stores a message, a recipient
+        (<code>employee_id</code>), and a status (<code>is_read</code>).
+    </p>
+
+    <h3 id="support-queries-table">support_queries</h3>
+    <p>
+        The backend for the internal help-desk system. When an employee needs help, they can submit a
+        "ticket" which creates a record here, allowing admins to track, manage, and resolve issues.
+    </p>
+
+    <h3 id="help-articles-table">help_articles</h3>
+    <p>
+        The content for the "Help Center" or knowledge base. Admins can write articles and "how-to" guides
+        (<code>content</code>, <code>video_embed_url</code>) that employees can search to find answers
+        independently.
+    </p>
+</section>

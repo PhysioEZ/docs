@@ -1,0 +1,166 @@
+<div class="breadcrumbs">
+    <a href="pages/introduction.html" class="nav-link">Docs</a>
+    <span>/</span>
+    <a href="pages/database/01-overview-and-er-diagram.html" class="nav-link">Database Schema</a>
+    <span>/</span>
+    <span>Patient Treatment Lifecycle</span>
+</div>
+<br>
+<section id="lifecycle-intro">
+    <h1>Patient Treatment Lifecycle</h1>
+    <p>
+        After a patient is onboarded (see: <em>Patient Onboarding</em>) and has a core record (see: <em>Core
+            Tables</em>),
+        they enter the active treatment lifecycle. This set of tables governs the day-to-day clinic operations:
+        managing treatment plans, scheduling appointments, marking daily attendance, and collecting payments.
+    </p>
+</section>
+
+<hr class="section-divider">
+
+<section id="diagram-lifecycle">
+    <h2 id="diagram-lifecycle-heading">Use Case: Active Patient Lifecycle</h2>
+    <p>
+        This diagram shows the core operational loop. It centers on the <code>patients</code> table (the local,
+        branch-specific file) and connects to all events related to their care. It answers the question, "What is
+        happening with this patient right now?"
+    </p>
+
+    <div class="image-placeholder">
+        <img src="pages/05-database-schema/assets/patient-lifecycle.png" alt="Patient Lifecycle ER Diagram" style="width: 1500px;">
+        <p class="caption-text">Core operational loop for active patients.</p>
+    </div>
+
+    <h3 id="data-flow-heading">Data Flow Explained</h3>
+    <ol>
+        <li>
+            The <strong><code>patients</code></strong> table holds the patient's *current* branch-specific treatment
+            plan, including costs, duration, and status.
+        </li>
+        <li>
+            When a patient's plan is changed, their old plan is archived into the
+            <strong><code>patients_treatment</code></strong>
+            table for historical tracking.
+        </li>
+        <li>
+            Day-to-day <strong><code>patient_appointments</code></strong> are scheduled, linking the
+            <code>patient_id</code> to a specific date, time slot, and service.
+        </li>
+        <li>
+            When the patient arrives for their treatment, an <code>employees</code> member marks their
+            <strong><code>attendance</code></strong>, which serves as a "check-in" for that day.
+        </li>
+        <li>
+            Finally, <strong><code>payments</code></strong> are collected against the patient's file,
+            recording the amount, mode, and the employee who processed the transaction.
+        </li>
+    </ol>
+
+    <h3 id="dbml-heading">DBML Code</h3>
+    <p>
+        This DBML code generates the diagram above.
+    </p>
+    <pre><code class="language-dbml">
+// --- USE CASE 3: ACTIVE PATIENT TREATMENT LIFECYCLE ---
+
+Table patients {
+  patient_id int [PK]
+  master_patient_id bigint [ref: > patient_master.master_patient_id]
+  branch_id int [ref: > branches.branch_id]
+  created_by_employee_id int [ref: > employees.employee_id]
+  status enum
+  created_at timestamp
+  plan_changed tinyint
+}
+
+Table patient_master {
+  master_patient_id bigint [PK]
+  full_name varchar
+  phone_number varchar
+}
+
+Table patients_treatment {
+  treatment_id int [PK]
+  patient_id int [ref: > patients.patient_id]
+  treatment_type enum
+  total_amount decimal
+  start_date date
+  end_date date
+  status enum
+  created_by_employee_id int [ref: > employees.employee_id]
+}
+
+Table patient_appointments {
+  appointment_id int [PK]
+  patient_id int [ref: > patients.patient_id]
+  branch_id int [ref: > branches.branch_id]
+  created_by_employee_id int [ref: > employees.employee_id]
+  appointment_date date
+  status varchar
+}
+
+Table attendance {
+  attendance_id int [PK]
+  patient_id int [ref: > patients.patient_id]
+  marked_by_employee_id int [ref: > employees.employee_id]
+  attendance_date date
+  payment_id int [ref: > payments.payment_id]
+}
+
+Table payments {
+  payment_id int [PK]
+  patient_id int [ref: > patients.patient_id]
+  processed_by_employee_id int [ref: > employees.employee_id]
+  payment_date date
+  amount decimal
+  mode enum
+}
+
+Table employees {
+  employee_id int [PK]
+  first_name varchar
+  last_name varchar
+}
+
+Table branches {
+  branch_id int [PK]
+  branch_name varchar
+}
+</code></pre>
+</section>
+
+<hr class="section-divider">
+
+<section id="table-definitions-lifecycle">
+    <h2 id="table-definitions-lifecycle-heading">Key Table Definitions</h2>
+
+    <h3 id="patients-table">patients</h3>
+    <p>
+        This is the patient's "local" file for a specific branch. It holds their <strong>current</strong> treatment
+        plan,
+        costs, and status at this location. It links back to the global <code>patient_master</code>.
+    </p>
+
+    <h3 id="patients-treatment-table">patients_treatment</h3>
+    <p>
+        An <strong>archival table</strong>. When <code>patients.plan_changed</code> is set to true, the patient's
+        previous treatment details are copied here. This maintains a clean history of all past treatment plans.
+    </p>
+
+    <h3 id="patient-appointments-table">patient_appointments</h3>
+    <p>
+        Stores all future and past appointments for a patient, including the date, time slot, and service type.
+    </p>
+
+    <h3 id="attendance-table">attendance</h3>
+    <p>
+        Acts as a "check-in" log. It serves as proof that a patient attended a session on a specific day and links to
+        the employee who marked them present.
+    </p>
+
+    <h3 id="payments-table">payments</h3>
+    <p>
+        A ledger of all incoming funds from a patient (e.g., for treatments, consultations). It records the amount,
+        mode of payment, and the employee who processed it. This is separate from clinic-wide <code>expenses</code>.
+    </p>
+</section>

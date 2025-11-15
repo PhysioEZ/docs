@@ -1,0 +1,91 @@
+<div class="breadcrumbs">
+    <a href="/" class="nav-link">Docs</a>
+    <span>/</span>
+    <span>Common Utilities</span>
+    <span>/</span>
+    <span>Authentication</span>
+</div>
+
+<section id="auth-introduction">
+    <h1>Authentication System (`auth.php`)</h1>
+    <p>
+        The <code>common/auth.php</code> script is the primary security gatekeeper for the entire application. Its main purpose is to verify that a user has a valid, active session before allowing them to access any restricted page. It is the cornerstone of the system's security model.
+    </p>
+</section>
+
+<section id="usage">
+    <h2 id="usage-heading">Core Usage</h2>
+    <p>
+        To protect any page within a module, you <strong>must</strong> include <code>common/auth.php</code> at the very top of the file. No other code should execute before it.
+    </p>
+    <pre><code>&lt;?php
+// At the absolute top of /admin/views/dashboard.php
+require_once '../../common/auth.php';
+
+// If the script continues, the user is authenticated.
+// The rest of your page logic goes here.
+
+echo "Welcome, " . htmlspecialchars($_SESSION['full_name']);
+?&gt;</code></pre>
+    <p>If the user's session is invalid or does not exist, this script will automatically halt execution and redirect them to the login page.</p>
+</section>
+
+<section id="session-security">
+    <h2 id="session-security-heading">Session Security Features</h2>
+    <p>The authentication system employs several layers of security to protect user sessions:</p>
+    <ul>
+        <li><strong>Secure Cookies:</strong> Sessions are configured to use <code>HttpOnly</code>, <code>Secure</code> (on HTTPS), and <code>SameSite=Strict</code> cookies to prevent access from JavaScript and mitigate CSRF attacks.</li>
+        <li><strong>Session Hijacking Prevention:</strong> On login, the user's IP address and User-Agent are hashed and stored in the session. The <code>auth.php</code> script verifies that these values match on every page load. If they don't, the session is immediately destroyed.</li>
+        <li><strong>Session Fixation Prevention:</strong> The session ID is regenerated upon successful login using <code>session_regenerate_id(true)</code>.</li>
+    </ul>
+</section>
+
+<section id="login-methods">
+    <h2 id="login-methods-heading">Login Methods</h2>
+    <p>The <code>login.php</code> script handles the initial credential validation and supports two distinct login scenarios:</p>
+
+    <h3 id="standard-login">1. Standard Login</h3>
+    <p>This is the primary method for most users. They log in using their personal credentials.</p>
+    <ul>
+        <li><strong>Username:</strong> The user's email address or first name.</li>
+        <li><strong>Password:</strong> The user's personal, hashed password.</li>
+    </ul>
+
+    <h3 id="role-based-login">2. Role-Based Master Key Login</h3>
+    <p>This is a special administrative feature that allows a user with a master key to log in as a specific job role within a branch.</p>
+    <ul>
+        <li><strong>Username:</strong> The exact job title (e.g., "Receptionist").</li>
+        <li><strong>Password:</strong> A globally active "role login key".</li>
+    </ul>
+    <p>When this method is used, the system logs in as the most recently created, active employee with that job title.</p>
+</section>
+
+<section id="role-based-access">
+    <h2 id="role-based-access-heading">Role-Based Access Control (RBAC)</h2>
+    <p>
+        While <code>auth.php</code> confirms a user is logged in, you can further restrict access to certain pages based on the user's role. The <code>require_role()</code> function is provided for this purpose.
+    </p>
+    <p>
+        This is useful for pages within a module that should only be accessible to a specific role, even if other roles share that module.
+    </p>
+    <pre><code>&lt;?php
+require_once '../../common/auth.php';
+
+// After including auth.php, check the role.
+// This will exit with a 403 Forbidden error if the role doesn't match.
+require_role('admin');
+
+// Only admins can see this content.
+?&gt;</code></pre>
+</section>
+
+<section id="session-data">
+    <h2 id="session-data-heading">Available Session Data</h2>
+    <p>After a successful login, the following data is available in the global <code>$_SESSION</code> array:</p>
+    <ul>
+        <li><code>$_SESSION['employee_id']</code>: The unique ID of the logged-in employee.</li>
+        <li><code>$_SESSION['full_name']</code>: The employee's full name for display.</li>
+        <li><code>$_SESSION['role']</code>: The employee's role name (e.g., 'admin', 'doctor').</li>
+        <li><code>$_SESSION['branch_id']</code>: The ID of the branch the employee belongs to.</li>
+    </ul>
+</section>

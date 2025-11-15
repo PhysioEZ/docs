@@ -1,0 +1,119 @@
+<div class="breadcrumbs">
+    <a href="/OS/docs/" class="nav-link">Docs</a>
+    <span>/</span>
+    <a href="pages/database/01-overview-and-er-diagram.html" class="nav-link">Database Schema</a>
+    <span>/</span>
+    <span>Core Tables</span>
+</div>
+<br>
+<section id="core-tables-intro">
+    <h1>Core Foundational Tables</h1>
+    <p>
+        Before exploring complex workflows, it's essential to understand the core "pillar" tables that all other
+        operations depend on. These tables define the fundamental actors and locations within CareSyncOS.
+    </p>
+    <ul>
+        <li><strong>Branches:</strong> The "where" — the physical clinic locations.</li>
+        <li><strong>Employees:</strong> The "who" (staff) — the users who operate the system.</li>
+        <li><strong>Roles:</strong> The "what" — the permissions and job titles for employees.</li>
+        <li><strong>Patient Master:</strong> The "who" (patients) — the global, unique identity for all patients.</li>
+    </ul>
+</section>
+
+<hr class="section-divider">
+
+<section id="diagram-core">
+    <h2 id="diagram-core-heading">Core Tables ER Diagram</h2>
+    <p>
+        This diagram shows the primary relationships between these foundational tables. You can see how an
+        <code>employees</code> record acts as the central link, connecting a <code>branches</code> (where they work)
+        to a <code>roles</code> (what they do) and a <code>users</code> (their login).
+    </p>
+
+    <div class="image-placeholder">
+        <img src="pages/05-database-schema/assets/core-tables.png" alt="Core Tables ER Diagram">
+        <p class="caption-text">Core relationships between branches, employees, and patients.</p>
+    </div>
+
+    <h3 id="dbml-heading">DBML Code</h3>
+    <p>
+        This DBML shows the core tables and their most critical links.
+    </p>
+    <pre><code class="language-dbml">
+// --- USE CASE 2: CORE FOUNDATIONAL TABLES ---
+
+Table branches {
+  branch_id int [PK]
+  branch_name varchar
+  clinic_name varchar
+  is_active tinyint
+  // Links to the main admin of this branch
+  admin_employee_id int [ref: > employees.employee_id]
+}
+
+Table employees {
+  employee_id int [PK]
+  user_id int [ref: > users.id]
+  branch_id int [ref: > branches.branch_id]
+  role_id int [ref: > roles.role_id]
+  first_name varchar
+  last_name varchar
+  job_title varchar
+  is_active tinyint
+}
+
+Table roles {
+  role_id int [PK]
+  role_name varchar
+}
+
+Table users {
+  id int [PK]
+  // Abstract user table, likely for login/auth credentials.
+}
+
+Table patient_master {
+  master_patient_id bigint [PK]
+  patient_uid varchar
+  full_name varchar
+  phone_number varchar
+  // This is the global, unique patient identity,
+  // separate from any single branch.
+}
+</code></pre>
+</section>
+
+<hr class="section-divider">
+
+<section id="table-definitions">
+    <h2 id="table-definitions-heading">Table Definitions</h2>
+    <p>
+        Here is a brief description of each core table's purpose.
+    </p>
+
+    <h3 id="branches-table">branches</h3>
+    <p>
+        This table is the master list of all physical clinic locations. Every major entity (like employees, patients,
+        and expenses) is tied to a specific <code>branch_id</code>, making it the primary table for data segregation.
+    </p>
+
+    <h3 id="employees-table">employees</h3>
+    <p>
+        This is the central table for all staff members. It links to a <code>branches</code> (where they work) and a
+        <code>roles</code> (what their job is). All actions in the system, from creating a patient to approving an
+        expense, are traced back to an <code>employee_id</code>.
+    </p>
+
+    <h3 id="roles-table">roles</h3>
+    <p>
+        A simple lookup table that defines the job titles and permission groups (e.g., "Doctor", "Receptionist",
+        "Admin") within the application. This governs what an employee is allowed to see and do.
+    </p>
+
+    <h3 id="patient-master-table">patient_master</h3>
+    <p>
+        This is a critical table for multi-branch functionality. It stores the **global, unique identity** for every
+        patient. If a patient visits two different branches, they will have *one* <code>patient_master</code> record
+        but *two* separate <code>patients</code> records (one for each branch), all linked by this master ID.
+    </p>
+</section>

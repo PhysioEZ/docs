@@ -1,0 +1,130 @@
+<div class="breadcrumbs">
+    <a href="pages/introduction.html" class="nav-link">Docs</a>
+    <span>/</span>
+    <a href="pages/database/01-overview-and-er-diagram.html" class="nav-link">Database Schema</a>
+    <span>/</span>
+    <span>Financial Tables</span>
+</div>
+
+<section id="financial-intro">
+    <h1>Financial & Expense Tables</h1>
+    <p>
+        This section covers the financial tables responsible for tracking all clinic expenditures. This is the
+        "money-out"
+        flow, as opposed to the <code>payments</code> table, which tracks "money-in" from patients.
+    </p>
+    <p>
+        The two primary tables in this module are <strong><code>expenses</code></strong>, which records every individual
+        transaction, and <strong><code>branch_budgets</code></strong>, which sets the spending limits for a given
+        branch.
+    </p>
+</section>
+
+<hr class="section-divider">
+
+<section id="diagram-financial">
+    <h2 id="diagram-financial-heading">Use Case: Expense & Budget Management</h2>
+    <p>
+        This diagram illustrates the expense approval and tracking workflow. An <code>employees</code> member creates an
+        <code>expenses</code> record, which is then approved and authorized by other users, all while being
+        checked against the <code>branch_budgets</code>.
+    </p>
+
+    <div class="image-placeholder">
+        <img src="pages/05-database-schema/assets/financial-tables.png" alt="Financial and Expense Tables ER Diagram">
+        <p class="caption-text">Data flow for expense tracking and approvals.</p>
+    </div>
+
+    <h3 id="data-flow-heading">Data Flow Explained</h3>
+    <ol>
+        <li>
+            A <code>branch_budgets</code> record is set by an admin (<code>created_by_employee_id</code>), assigning a
+            <code>daily_budget_amount</code> to a specific <code>branches</code>.
+        </li>
+        <li>
+            An <code>employees</code> member initiates an <code>expenses</code> record (e.g., for supplies), detailing
+            the amount, description, and payment method.
+        </li>
+        <li>
+            This <code>expenses</code> record must go through an approval chain. It is linked to the
+            <code>approved_by_employee_id</code> and the <code>authorized_by_employee_id</code> before the
+            <code>status</code> is set to 'Approved'.
+        </li>
+        <li>
+            All tables are linked back to <code>branches</code>, <code>employees</code>, and <code>users</code> for
+            complete auditability.
+        </li>
+    </ol>
+
+    <h3 id="dbml-heading">DBML Code</h3>
+    <p>
+        This DBML code generates the diagram above.
+    </p>
+    <pre><code class="language-dbml">
+// --- USE CASE 5: CLINIC FINANCIALS (EXPENSES & BUDGETS) ---
+
+Table expenses {
+  expense_id int [PK]
+  branch_id int [ref: > branches.branch_id]
+  user_id int [ref: > users.id] // Requested by
+  employee_id int [ref: > employees.employee_id] // Requested by
+  expense_date date
+  description text
+  amount decimal
+  status enum
+  
+  approved_by_user_id int [ref: > users.id]
+  approved_by_employee_id int [ref: > employees.employee_id]
+  authorized_by_user_id int [ref: > users.id]
+  authorized_by_employee_id int [ref: > employees.employee_id]
+  
+  payment_method enum
+  bill_image_path varchar
+}
+
+Table branch_budgets {
+  id int [PK]
+  branch_id int [ref: > branches.branch_id]
+  daily_budget_amount decimal
+  effective_from_date date
+  created_by_user_id int [ref: > users.id]
+  created_by_employee_id int [ref: > employees.employee_id]
+}
+
+Table branches {
+  branch_id int [PK]
+  branch_name varchar
+}
+
+Table employees {
+  employee_id int [PK]
+  user_id int [ref: > users.id]
+  first_name varchar
+  last_name varchar
+}
+
+Table users {
+  id int [PK]
+}
+</code></pre>
+</section>
+
+<hr class="section-divider">
+
+<section id="table-definitions-financial">
+    <h2 id="table-definitions-financial-heading">Key Table Definitions</h2>
+
+    <h3 id="expenses-table">expenses</h3>
+    <p>
+        This is the central ledger for all clinic expenditures. It includes a comprehensive approval chain
+        (<code>approved_by_...</code>, <code>authorized_by_...</code>) to ensure all spending is properly
+        vetted. It also stores a <code>bill_image_path</code> for receipt auditing.
+    </p>
+
+    <h3 id="branch-budgets-table">branch_budgets</h3>
+    <p>
+        This table defines the spending limits for a clinic branch. The application logic will check
+        <code>expenses</code> against the <code>daily_budget_amount</code> in this table before approving a new
+        transaction.
+    </p>
+</section>

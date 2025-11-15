@@ -1,0 +1,150 @@
+<div class="breadcrumbs">
+    <a href="OS/docs/" class="nav-link">Docs</a>
+    <span>/</span>
+    <a href="pages/database/01-overview-and-er-diagram.html" class="nav-link">Database Schema</a>
+    <span>/</span>
+    <span>Auxiliary Tables</span>
+</div>
+
+<section id="aux-tables-intro">
+    <h1>Auxiliary & Utility Tables</h1>
+    <p>
+        This final group of tables provides essential utility functions that support the main application workflows.
+        They handle internal communication (<code>chat_messages</code>), public-facing web forms
+        (<code>job_applications</code>), and daily operational tracking (<code>tokens</code>,
+        <code>daily_patient_counter</code>).
+    </p>
+</section>
+
+<hr class="section-divider">
+
+<section id="diagram-aux">
+    <h2 id="diagram-aux-heading">Use Case: Internal Utilities & Communication</h2>
+    <p>
+        This diagram shows the remaining standalone tables. These tables are not as deeply interconnected as the main
+        workflows but provide vital supporting services, such as internal staff chat, patient queuing, and website
+        "Contact Us" forms.
+    </p>
+
+    <div class="image-placeholder">
+        <img src="pages/05-database-schema/assets/auxiliary-tables.png" alt="Auxiliary Tables ER Diagram">
+        <p class="caption-text">Utility tables for chat, tokens, and web forms.</p>
+    </div>
+
+    <h3 id="dbml-heading">DBML Code</h3>
+    <p>
+        This DBML code generates the diagram above.
+    </p>
+    <pre><code class="language-dbml">
+// --- USE CASE 7: AUXILIARY & UTILITY TABLES ---
+
+Table employees {
+  employee_id int [PK]
+  branch_id int [ref: > branches.branch_id]
+  first_name varchar
+  last_name varchar
+}
+
+Table branches {
+  branch_id int [PK]
+  branch_name varchar
+}
+
+Table patients {
+  patient_id int [PK]
+  branch_id int [ref: > branches.branch_id]
+  full_name varchar
+}
+
+Table chat_messages {
+  message_id bigint [PK]
+  sender_employee_id int [ref: > employees.employee_id]
+  receiver_employee_id int [ref: > employees.employee_id]
+  message_type varchar
+  message_text text
+  is_read tinyint
+  created_at timestamp
+}
+
+Table tokens {
+  token_id bigint [PK]
+  token_uid varchar
+  branch_id int [ref: > branches.branch_id]
+  patient_id int [ref: > patients.patient_id]
+  created_by_employee_id int [ref: > employees.employee_id]
+  service_type varchar
+  token_date date
+  created_at timestamp
+}
+
+Table job_applications {
+  id int [PK]
+  full_name varchar
+  email varchar
+  phone varchar
+  status enum
+  created_at timestamp
+}
+
+Table appointments {
+  id int [PK]
+  patient_id int
+  branch_id int [ref: > branches.branch_id]
+  fullName varchar
+  phone varchar
+  status enum
+  // Note: This is a general/legacy appointment table
+}
+
+Table daily_patient_counter {
+  entry_date date [PK]
+  counter int
+}
+
+Table role_login_keys {
+  id int [PK]
+  key_name varchar
+  password_hash varchar
+  is_active tinyint
+  // Note: Special login for shared roles
+}
+</code></pre>
+</section>
+
+<hr class="section-divider">
+
+<section id="table-definitions-aux">
+    <h2 id="table-definitions-aux-heading">Key Table Definitions</h2>
+
+    <h3 id="chat-messages-table">chat_messages</h3>
+    <p>
+        Powers the internal, one-to-one chat system between employees. It stores the sender, receiver, and message
+        content, allowing staff to communicate securely within the application.
+    </p>
+
+    <h3 id="tokens-table">tokens</h3>
+    <p>
+        Manages the patient queueing system. When a patient arrives at a branch, a <code>tokens</code> record is
+        generated (e.g., "Token A-005"), allowing for an organized "first-come, first-served" flow managed by the
+        receptionist.
+    </p>
+
+    <h3 id="job-applications-table">job_applications</h3>
+    <p>
+        A simple "lead" table that captures submissions from the public "Career" page on the clinic's website.
+    </p>
+
+    <h3 id="role-login-keys-table">role_login_keys</h3>
+    <p>
+        A special security table. It allows for a shared login (e.g., "Reception Desk") that is not tied to a
+        specific <code>employees</code> record, enabling multiple receptionists on different shifts to use the same
+        terminal.
+    </p>
+
+    <h3 id="daily-patient-counter-table">daily_patient_counter</h3>
+    <p>
+        A performance-tracking table. It stores a simple integer (<code>counter</code>) for each
+        <code>entry_date</code>, likely used to generate a unique Patient ID or Registration ID for the day (e.g.,
+        "20251115-001", "20251115-002").
+    </p>
+</section>

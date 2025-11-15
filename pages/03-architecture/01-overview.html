@@ -1,0 +1,71 @@
+<div class="breadcrumbs">
+    <a href="/" class="nav-link">Docs</a>
+    <span>/</span>
+    <span>Architecture</span>
+    <span>/</span>
+    <span>Overview</span>
+</div>
+
+<section id="overview-intro">
+    <h1>Architecture Overview</h1>
+    <p>
+        CareSyncOS is built upon a modular PHP architecture designed for scalability, maintainability, and a strict separation of concerns. This structure ensures that each functional part of the application operates independently while relying on a centralized core for shared services.
+    </p>
+</section>
+
+<section id="core-principles">
+    <h2 id="core-principles-heading">Core Principles</h2>
+    <p>The architecture is guided by two primary principles:</p>
+    <ul>
+        <li>
+            <strong>Module Isolation:</strong> Each user role (e.g., Admin, Doctor, Reception) has its own dedicated module directory. This module contains all the views, APIs, and assets specific to that role. Modules are forbidden from accessing the internal code of other modules, enforcing clear boundaries.
+        </li>
+        <li>
+            <strong>Centralized Logic:</strong> System-wide functionalities like authentication, database connections, configuration, and logging are centralized in the <code>common/</code> directory. This promotes code reuse and ensures that core services are managed consistently across the entire application.
+        </li>
+    </ul>
+</section>
+
+<section id="directory-structure">
+    <h2 id="directory-structure-heading">Directory Structure</h2>
+    <p>The project's directory structure is a direct reflection of its modular architecture. The layout below illustrates how different parts of the system are organized.</p>
+    <pre><code>OS/
+│
+├── index.html           # Landing page
+├── login.php            # Authentication entry point
+│
+├── common/              # System-wide logic (must be loaded first)
+│   ├── auth.php         # Authentication and session management
+│   ├── config.php       # System keys and configuration
+│   ├── db.php           # PDO database connection handler
+│   └── logger.php       # Event logging system
+│
+├── admin/               # Admin module (self-contained)
+│   ├── api/
+│   ├── js/
+│   └── views/
+│
+├── reception/           # Reception module (self-contained)
+│   ├── api/
+│   ├── js/
+│   └── views/
+│
+├── api/                 # Global API for multi-role operations
+│   ├── patient/
+│   └── appointments/
+│
+└── uploads/             # Persistent media storage
+    └── ...</code></pre>
+</section>
+
+<section id="key-components">
+    <h2 id="key-components-heading">Key Components</h2>
+    <h3 id="common-directory">The `common/` Directory</h3>
+    <p>This is the foundational layer of the application. Every restricted page within any module <strong>must</strong> include <code>common/auth.php</code> at the very top to ensure the user is authenticated and has the correct permissions. This directory provides all shared services.</p>
+
+    <h3 id="role-modules">Role Modules (e.g., `admin/`, `reception/`)</h3>
+    <p>These directories are self-contained applications for a specific user role. All logic, UI, and APIs that are only relevant to that role should be placed here. This strict separation is the most important rule of the architecture.</p>
+
+    <h3 id="global-api">The Global `api/` Directory</h3>
+    <p>This directory is reserved for business logic that is shared across multiple roles. For example, an API endpoint to fetch patient details might be used by both Doctors and Receptionists. Placing it in the global API avoids code duplication.</p>
+</section>

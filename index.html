@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSyncOS - Developer Docs</title>
+
+    <!-- 
+        This <base> tag is the key to fixing the pathing issues.
+        It tells the browser that all relative URLs (like those in app.js)
+        should be resolved from the /docs/ directory.
+    -->
+    <base href="/OS/docs/">
+    <link rel="stylesheet" href="/OS/docs/assets/css/style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <!-- The logo can be a link back to the main docs page -->
+        <a href="/OS/docs/" class="header-logo" style="display: flex; width: 100%;">CareSyncOS Docs</a>
+        <!-- Theme toggle button -->
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme" style="background-color: transparent; color: inherit; border: none; cursor: pointer;"><i class="fa-solid fa-moon"></i></button>
+    </header>
+
+    <nav class="sidebar">
+        <input type="text" class="sidebar-search" id="sidebarSearch" placeholder="Search docs...">
+        <ul class="sidebar-nav" id="sidebarNav">
+            <li><a href="pages/01-introduction.html" class="nav-link">Introduction</a></li>
+            
+            <!-- This is an example of a collapsible section for a sub-directory -->
+            <li class="collapsible">
+                <div class="collapsible-header">Getting Started</div>
+                <div class="collapsible-body">
+                    <ul>
+                        <li><a href="pages/getting-started/01-installation.html" class="nav-link">Installation</a></li>
+                        <li><a href="pages/getting-started/02-configuration.html" class="nav-link">Configuration</a></li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <div class="content-body" id="content-wrapper">
+        </div>
+        <aside class="toc-wrapper">
+            <div class="toc-title">On this page</div>
+            <ul class="toc-list" id="autoToc">
+            </ul>
+        </aside>
+    </main>
+
+    <script src="/OS/docs/assets/js/theme.js"></script>
+    <script src="/OS/docs/assets/js/features.js"></script>
+    <script src="/OS/docs/assets/js/app.js"></script>
+</body>
+
+</html>

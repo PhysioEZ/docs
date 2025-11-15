@@ -1,0 +1,437 @@
+<div class="breadcrumbs"> <a href="pages/introduction.html" class="nav-link">Docs</a> <span>/</span> <a
+        href="pages/06-admin-module/01-overview.html" class="nav-link">Admin Module</a> <span>/</span>
+    <span>Views</span> </div>
+
+<section id="views-intro">
+    <h1>Admin Module: Views</h1>
+    <p> The <code>/admin/views/</code> directory contains all the user-facing PHP pages for the Admin Module. These
+        files are responsible for fetching data from the database, rendering the HTML interface, and handling user
+        interactions for high-level management and oversight. </p>
+    <p> <strong>Common Elements:</strong> All views in this module share a consistent structure: </p>
+    <ul>
+        <li><strong>Security:</strong> Every page begins with a session check (e.g.,
+            <code>isset($_SESSION['employee_id'])</code> or <code>isset($_SESSION['uid'])</code>) and a role-based
+            access control check to ensure only users with the 'admin' or 'superadmin' role can access the content.</li>
+        <li><strong>Layout:</strong> They include a persistent, expandable sidebar (<code>#admin-sidebar</code>) and a
+            top header (<code>&lt;header&gt;</code>).</li>
+        <li><strong>Common JavaScript:</strong>
+            <ul>
+                <li><code>/reception/js/theme.js</code>: Manages the light/dark mode theme toggle.</li>
+                <li><code>/admin/js/sidebar.js</code>: Manages the expanding and collapsing of the admin-sidebar.</li>
+            </ul>
+        </li>
+    </ul>
+</section>
+
+<hr class="section-divider">
+
+<section id="view-definitions">
+    <h2 id="view-definitions-heading">View File Breakdown</h2>
+    <p> Below is a detailed breakdown of each view file, its purpose, data sources, and technical implementation. </p>
+
+    <h3 id="dashboard-view">dashboard.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> This is the main landing page or "mission control" for the logged-in
+            administrator. It provides a high-level, real-time snapshot of the branches <strong>managed by that specific
+                admin</strong>.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['employee_id']</code> and a role of 'admin'
+            or 'superadmin'.</li>
+        <li><strong>Data Fetching (Page Load):</strong> This page is data-intensive and filters almost all its metrics
+            based on the admin's assigned branches.
+            <ol>
+                <li><strong>Managed Branches:</strong> The script's first and most critical query fetches the
+                    <code>branch_id</code>s from the <code>branches</code> table where the
+                    <code>admin_employee_id</code> column matches the logged-in admin's
+                    <code>$_SESSION['employee_id']</code>.</li>
+                <li><strong>KPI Queries:</strong> All subsequent queries for KPIs (Key Performance Indicators) use a
+                    dynamic <code>IN (...)</code> clause built from the list of managed branch IDs.
+                    <ul>
+                        <li><strong>This Month's Snapshot:</strong>
+                            <ul>
+                                <li><strong>Revenue:</strong> <code>SUM(amount)</code> from <code>payments</code>
+                                    (joined to <code>patients</code> to check <code>branch_id</code>).</li>
+                                <li><strong>New Patients:</strong> <code>COUNT(registration_id)</code> from
+                                    <code>registration</code>.</li>
+                                <li><strong>Appointments:</strong> <code>COUNT(appointment_id)</code> from
+                                    <code>patient_appointments</code> (joined to <code>patients</code>).</li>
+                                <li><strong>Expenses:</strong> <code>SUM(amount)</code> from <code>expenses</code>
+                                    (where <code>status = 'approved'</code>).</li>
+                            </ul>
+                        </li>
+                        <li><strong>Totals for Managed Branches:</strong>
+                            <ul>
+                                <li><strong>Total Revenue:</strong> <code>SUM(amount)</code> from <code>payments</code>.
+                                </li>
+                                <li><strong>Total Patients:</strong> <code>COUNT(DISTINCT master_patient_id)</code> from
+                                    <code>patient_master</code> (joined to <code>patients</code>).</li>
+                                <li><strong>Active Branches:</strong> A PHP <code>count()</code> of the fetched managed
+                                    branch IDs.</li>
+                                <li><strong>Total Employees:</strong> <code>COUNT(employee_id)</code> from
+                                    <code>employees</code>, specifically **excluding** 'admin' and 'superadmin' roles.
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li><strong>Chart & Table Data:</strong>
+                    <ul>
+                        <li><strong>Revenue Chart (30 Days):</strong> Fetches <code>SUM(amount)</code> grouped by
+                            <code>DATE(payment_date)</code> from <code>payments</code>.</li>
+                        <li><strong>Referral Chart:</strong> Fetches <code>COUNT(*)</code> grouped by
+                            <code>referralSource</code> from <code>registration</code>.</li>
+                        <li><strong>Revenue by Branch Table:</strong> Fetches <code>SUM(amount)</code> grouped by
+                            <code>branch_name</code> from <code>payments</code>.</li>
+                    </ul>
+                </li>
+                <li><strong>Global Data (Not Filtered):</strong>
+                    <ul>
+                        <li><strong>Recent Activity:</strong> Fetches the last 10 logs from the <code>audit_log</code>
+                            table, regardless of branch.</li>
+                    </ul>
+                </li>
+            </ol>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>KPI Cards:</strong> 8 cards displaying the "This Month" and "Overall" metrics.</li>
+                <li><strong>Charts:</strong> A line chart for revenue (<code>#revenueChart</code>) and a doughnut chart
+                    for referrals (<code>#referralChart</code>). These are rendered client-side by Chart.js using JSON
+                    data (<code>$revenueChartJson</code>, <code>$referralChartJson</code>) prepared by PHP.</li>
+                <li><strong>Tables:</strong> "Revenue by Managed Branch" and "Recent System Activity".</li>
+                <li><strong>Chat System:</strong> The page includes HTML for a full chat inbox (<code>#myInbox</code>),
+                    which is controlled by <code>/admin/js/chat.js</code>.</li>
+            </ul>
+        </li>
+        <li><strong>Client-Side Interaction (JS/API):</strong>
+            <ul>
+                <li><code>/admin/js/chat.js</code>: Manages the chat modal, loads users, and handles sending/receiving
+                    messages (implies API endpoints for chat functionality).</li>
+                <li><strong>Inline <code>&lt;script&gt;</code>:</strong> Contains the Chart.js initialization logic,
+                    consuming the JSON variables provided by PHP.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="branches-view">manage_branches.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> Provides full CRUD (Create, Read, Update) functionality for managing the clinic's
+            physical branches.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['uid']</code>. (Note: This uses the older
+            <code>uid</code> session variable).</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li><strong>Branch List:</strong> Fetches all records from the <code>branches</code> table to display in
+                    the "Existing Branches" table.</li>
+                <li><strong>Branch for Edit:</strong> If <code>$_GET['edit']</code> is present, it fetches a single
+                    branch's data to pre-populate the form, storing it in <code>$branchToEdit</code>.</li>
+            </ul>
+        </li>
+        <li><strong>Core Logic & Form Handling (POST):</strong>
+            <ul>
+                <li>This page uses a **standard HTML POST submission** (full page reload), not AJAX.</li>
+                <li>It handles <code>action=save_branch</code>. The form is unified:
+                    <ul>
+                        <li>If <code>$_POST['branch_id']</code> is present, it performs an <code>UPDATE</code>.</li>
+                        <li>If <code>$_POST['branch_id']</code> is empty, it performs an <code>INSERT</code>.</li>
+                    </ul>
+                </li>
+                <li><strong>File Uploads:</strong> It features a robust <code>handleLogoUpload</code> function for
+                    <code>logo_primary</code> and <code>logo_secondary</code>. This function validates file type (JPG,
+                    PNG, GIF), size (2MB limit), and moves the file to <code>/uploads/logos/</code>.</li>
+                <li><strong>PRG Pattern:</strong> It uses the Post-Redirect-Get (PRG) pattern. After processing the POST
+                    request, it saves messages to <code>$_SESSION['success']</code> or <code>$_SESSION['errors']</code>
+                    and then calls <code>header("Location: manage_branches.php")</code> to prevent form re-submission.
+                </li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Two-Column Layout:</strong>
+                    <ul>
+                        <li><strong>Left Column:</strong> The "Add/Edit" form. The title and submit button text change
+                            dynamically (<code>&lt;?= $branchToEdit ? 'Edit Branch' : 'Add New Branch' ?&gt;</code>).
+                        </li>
+                        <li><strong>Right Column:</strong> A table listing all <code>$branches</code>.</li>
+                    </ul>
+                </li>
+                <li><strong>Logo Previews:</strong> If editing a branch, it displays the current logos
+                    (<code>$branchToEdit['logo_primary_path']</code>) and stores the path in a hidden input
+                    (<code>existing_logo_primary</code>).</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="users-view">manage_users.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> The primary interface for managing employee records, including their personal
+            details, job roles, branch assignments, and login credentials.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['employee_id']</code> (or fallback
+            <code>uid</code>) and a role of 'admin' or 'superadmin'.</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li><strong>Employee List:</strong> Fetches all records from the <code>employees</code> table, joining
+                    <code>roles</code> and <code>branches</code> to get their names.
+                    <ul>
+                        <li><strong>Important:</strong> The query explicitly **excludes** employees with 'admin' or
+                            'superadmin' roles (<code>WHERE r.role_name NOT IN ('admin', 'superadmin')</code>),
+                            preventing admins from editing each other.</li>
+                    </ul>
+                </li>
+                <li><strong>Dropdown Data:</strong>
+                    <ul>
+                        <li>Fetches all <code>branches</code> for the modal's "Branch" dropdown.</li>
+                        <li>Fetches all <code>roles</code> (again, **excluding** 'admin'/'superadmin') for the "Role"
+                            dropdown.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Employee Table:</strong> A table displaying all fetched <code>$employees</code>. Each "Edit"
+                    button contains a <code>data-employee</code> attribute holding the JSON-encoded data for that
+                    employee.</li>
+                <li><strong>The "One" Modal (<code>#employee-modal</code>):</strong> A single, comprehensive modal is
+                    used for **both adding and editing**.
+                    <ul>
+                        <li><strong>Add Mode:</strong> Triggered by <code>#add-employee-btn</code>. The JavaScript
+                            clears the form, sets the title to "Add New Employee," and sets the
+                            <code>#form-action</code> input to 'add'.</li>
+                        <li><strong>Edit Mode:</strong> Triggered by <code>.edit-employee-btn</code>. The JavaScript
+                            parses the <code>data-employee</code> JSON, populates the form fields, sets the title to
+                            "Edit Employee," and sets <code>#form-action</code> to 'edit'.</li>
+                    </ul>
+                </li>
+                <li><strong>Toast Container:</strong> An empty <code>&lt;div id="toast-container"&gt;</code> for
+                    JavaScript to inject success/error notifications.</li>
+            </ul>
+        </li>
+        <li><strong>Client-Side Interaction (JS/API):</strong>
+            <ul>
+                <li><code>/admin/js/manage_users.js</code>: This file is **critical** to this page's function.
+                    <ul>
+                        <li>It handles all modal opening/closing logic.</li>
+                        <li>It intercepts the <code>#employee-form</code> submission.</li>
+                        <li>It uses the <code>fetch()</code> API (AJAX) to send the form data to
+                            <strong><code>../api/manage_employee_api.php</code></strong> (this API endpoint is implied
+                            by the JavaScript).</li>
+                        <li>It handles the JSON response from the API, shows a toast notification using its
+                            <code>showToast()</code> function, and reloads the page (<code>location.reload()</code>) on
+                            success.</li>
+                        <li>It also includes a password visibility toggle (the "eye" icon) for the password fields.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="expenses-view">manage_expenses.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> A global dashboard for reviewing, approving, and managing all expense vouchers
+            submitted from *all* branches. It also allows admins to create new, pre-approved expenses.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['uid']</code> and role ('admin',
+            'superadmin').</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li>Fetches all <code>branches</code> for the filter dropdown.</li>
+                <li>Builds a dynamic SQL query based on <code>$_GET</code> parameters (<code>branch</code>,
+                    <code>status</code>, <code>start_date</code>, <code>end_date</code>).</li>
+                <li>Fetches all matching expenses, joining <code>branches</code> (for branch name) and
+                    <code>employees</code> twice (once on <code>employee_id</code> for the creator, once on
+                    <code>approved_by_employee_id</code> for the approver).</li>
+                <li>Calculates <code>$totalAmount</code> based on the filtered results.</li>
+            </ul>
+        </li>
+        <li><strong>Core Logic & Form Handling (POST):</strong> This page uses **standard HTML form submissions** for
+            its actions.
+            <ul>
+                <li><strong>Status Update (<code>action=update_status</code>):</strong> Each row in the table contains
+                    its own <code>&lt;form&gt;</code>. When an admin selects a new status and clicks "Update," it
+                    submits *only* that row's form. The PHP logic catches this, updates the expense status (and stamps
+                    <code>approved_by_user_id</code> if 'approved'), and logs the change using
+                    <code>log_activity()</code>.</li>
+                <li><strong>Expense Creation (<code>action=create_expense</code>):</strong> The modal
+                    <code>#add-expense-modal</code> contains a form that submits a new expense. The PHP logic inserts
+                    this expense with the status 'approved' by default.</li>
+                <li>Both actions use the **PRG Pattern** (Post-Redirect-Get) by redirecting back to
+                    <code>manage_expenses.php</code>.</li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Filter Bar:</strong> A <code>&lt;form&gt;</code> with <code>method="GET"</code> for
+                    filtering the main table.</li>
+                <li><strong>Expense Table:</strong> Lists all <code>$expenses</code>. Each row has a "View Bill" button
+                    (<code>.view-bill-btn</code>) and the mini-form for status updates.</li>
+                <li><strong>Add Expense Modal (<code>#add-expense-modal</code>):</strong> A popup form for creating a
+                    new voucher.</li>
+                <li><strong>Image Preview Modal (<code>#image-preview-modal</code>):</strong> Used to display the bill
+                    image when "View Bill" is clicked.</li>
+            </ul>
+        </li>
+        <li><strong>Client-Side Interaction (JS/API):</strong>
+            <ul>
+                <li><strong>Inline <code>&lt;script&gt;</code>:</strong> Contains JavaScript to manage the visibility of
+                    the "Add Expense" modal and the "Image Preview" modal. It does *not* use AJAX for form submissions.
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="ledger-view">ledger.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> Provides a consolidated financial statement or "ledger" that combines all income
+            (credits) and all approved expenses (debits) into a single, chronological view with a running balance.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['employee_id']</code> and role ('admin',
+            'superadmin').</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li>Fetches all active <code>branches</code> for the filter dropdown.</li>
+                <li><strong>Core Query:</strong> The main data source is a complex <code>UNION ALL</code> SQL query.
+                    <ul>
+                        <li><strong>Part 1 (Credits):</strong> Selects data from the <code>payments</code> table (joined
+                            with <code>patients</code> and <code>branches</code>).</li>
+                        <li><strong>Part 2 (Debits):</strong> Selects data from the <code>expenses</code> table (where
+                            <code>status = 'approved'</code>).</li>
+                        <li>Both parts are filtered by the <code>$_GET</code> parameters for branch and date range. The
+                            final combined result is <code>ORDER BY date ASC</code>.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+        <li><strong>Core Logic & Form Handling (PHP):</strong>
+            <ul>
+                <li><strong>Running Balance:</strong> After fetching the <code>$transactions</code>, the PHP script
+                    iterates through the array and calculates the <code>$running_balance</code>,
+                    <code>$total_credit</code>, and <code>$total_debit</code> within the loop. The running balance is
+                    added to each transaction's array (<code>$txn['balance'] = $running_balance;</code>).</li>
+                <li><strong>Filtering:</strong> Handled via a <code>method="GET"</code> form, which reloads the page
+                    with new URL parameters.</li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Filter Bar:</strong> For selecting branch and date range.</li>
+                <li><strong>KPI Cards:</strong> Three cards show the calculated "Total Credit," "Total Debit," and "Net
+                    Profit / Loss."</li>
+                <li><strong>Ledger Table:</strong> The main table displaying all <code>$transactions</code>. The
+                    "Credit" and "Debit" columns are conditionally formatted. The "Balance" column shows the
+                    PHP-calculated running balance.</li>
+                <li><strong>Table Foot (<code>&lt;tfoot&gt;</code>):</strong> Displays the final totals
+                    (<code>$total_credit</code>, <code>$total_debit</code>, <code>$running_balance</code>).</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="profile-view">profile.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> Displays the profile of the **currently logged-in administrator**, allowing them
+            to view their managed branches and update their own security credentials (password, photo).</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['employee_id']</code> and role ('admin',
+            'superadmin').</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li><strong>Admin Details:</strong> Fetches the admin's own record from the <code>employees</code> table
+                    using <code>$_SESSION['employee_id']</code>.</li>
+                <li><strong>Managed Branches:</strong> Fetches all branches from the <code>branches</code> table where
+                    <code>admin_employee_id</code> matches the admin's session ID.</li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Profile Header:</strong> Shows the admin's photo (<code>$photoPath</code>) or initial
+                    (<code>$displayInitial</code>). The photo is a clickable zone to trigger a file upload.</li>
+                <li><strong>Info Cards:</strong> "Contact & General Info," "Account Security," and "Branches Under
+                    Management."</li>
+                <li><strong>Password Modal (<code>#password-modal</code>):</strong> A hidden modal for changing the
+                    admin's own password.</li>
+            </ul>
+        </li>
+        <li><strong>Client-Side Interaction (JS/API):</strong> This page uses AJAX (Fetch) for profile updates.
+            <ul>
+                <li><strong>Photo Upload:</strong> An inline script listens for changes on
+                    <code>#photo-upload-input</code>. It uses <code>fetch()</code> to send the image data to
+                    <strong><code>../api/upload_employee_photo.php</code></strong> and updates the profile image in
+                    real-time on success.</li>
+                <li><strong>Password Change:</strong>
+                    <ul>
+                        <li>An inline script manages the <code>#password-modal</code>.</li>
+                        <li>It performs client-side validation (length, uppercase, lowercase, number, symbol) and
+                            updates the "Password Requirements" UI.</li>
+                        <li>It intercepts the form submission and uses <code>fetch()</code> to send the data to
+                            <strong><code>../api/change_password.php</code></strong>.</li>
+                        <li>It uses a custom <code>showToast()</code> function (defined in the script) to show
+                            success/error messages.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="employee-profile-view">employee_profile.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> Displays a detailed, read-only profile for **a specific employee** chosen from the
+            `manage_users.php` page.</li>
+        <li><strong>Security & Access:</strong> Checks for admin <code>$_SESSION['uid']</code> and role.</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li>Fetches the employee's details from <code>employees</code> (joining <code>roles</code> and
+                    <code>branches</code>) using the ID from the URL (<code>$_GET['employee_id']</code>).</li>
+                <li><strong>Audit Log:</strong> Fetches the last 50 entries from <code>audit_log</code> where the
+                    <code>employee_id</code> matches the one from the URL.</li>
+                <li>Fetches <code>branches</code> and <code>roles</code> (likely for future use, as the page is
+                    read-only).</li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li><strong>Profile Cards:</strong> "Personal Information," "Employment Details," and "Account &
+                    Security," all populated with the fetched <code>$employee</code> data.</li>
+                <li><strong>Recent Activity:</strong> A widget that lists the <code>$auditLogs</code> for this user.
+                </li>
+                <li><strong>Placeholders:</strong> The page includes an "Attendance Calendar" and "Payroll" widget.
+                    <ul>
+                        <li>The Payroll widget is a hard-coded placeholder.</li>
+                        <li>The **Attendance Calendar** is rendered by an inline JavaScript, but it uses **dummy data**
+                            (a <code>dummyData</code> object). This section is a functional placeholder, not yet linked
+                            to a real <code>employee_attendance</code> table.</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 id="employees-old-view">manage_employees.php</h3>
+    <ul>
+        <li><strong>Purpose:</strong> This appears to be an older or alternative version of
+            <code>manage_users.php</code>. Its primary function is to **edit** existing employees.</li>
+        <li><strong>Security & Access:</strong> Checks for <code>$_SESSION['uid']</code> and role ('admin',
+            'superadmin').</li>
+        <li><strong>Data Fetching (Page Load):</strong>
+            <ul>
+                <li>Fetches employees from the <code>employees</code> table, joining the <code>users</code> table.
+                    (Note: This differs from <code>manage_users.php</code>, which joins <code>roles</code> and
+                    <code>branches</code>).</li>
+            </ul>
+        </li>
+        <li><strong>Key UI Elements:</strong>
+            <ul>
+                <li>A table listing employees.</li>
+                <li>An "Edit" button (<code>.edit-employee-btn</code>) with a <code>data-employee</code> attribute.</li>
+                <li>A modal (<code>#edit-employee-modal</code>) with a simpler form for editing details.</li>
+            </ul>
+        </li>
+        <li><strong>Client-Side Interaction (JS/API):</strong>
+            <ul>
+                <li><code>/admin/js/manage_employees.js</code>: This JS file (distinct from
+                    <code>manage_users.js</code>) listens for clicks on <code>.edit-employee-btn</code>, populates the
+                    modal, and handles the form submission via AJAX (implying an API endpoint like
+                    <code>../api/update_employee.php</code>).</li>
+            </ul>
+        </li>
+        <li><strong>Note:</strong> This file seems to have overlapping functionality with <code>manage_users.php</code>,
+            which is more feature-rich (includes "Add" functionality and better data joins).
+            <code>manage_users.php</code> is likely the primary, modern file for this task.</li>
+    </ul>
+
+</section>
