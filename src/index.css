@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+:root {
+  --color-brand-primary: #4f46e5;
+  --color-brand-dark: #312e81;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
